@@ -82,37 +82,38 @@ public class ChatRelay : BasePlugin, IPluginConfig<ChatRelayConfig>
         return HookResult.Continue;
     }
 
+    static readonly HttpClient Http = new();
+    static readonly Dictionary<ulong, string> Avatars = new();
+
+    async Task<string> GetAvatar(ulong id)
+    {
+        if (Avatars.TryGetValue(id, out var a)) return a;
+        a = "";
+        try
+        {
+            var xml = await Http.GetStringAsync($"https://steamcommunity.com/profiles/{id}?xml=1");
+            var m = System.Text.RegularExpressions.Regex.Match(xml, @"<avatarFull><!\[CDATA\[(.*?)\]\]>");
+            if (m.Success) a = m.Groups[1].Value;
+        }
+        catch { }
+        Avatars[id] = a;
+        return a;
+    }
+
     public async Task SendWebhookMessageAsEmbed(string playerName, string msg, string playerteam, ulong steamID)
     {
-        using (var httpClient = new HttpClient())
+        var y = steamID - 76561197960265728UL;
+        var payload = new
         {
-            var embed = new
-            {
-                title = playerName,
-                url = $"https://steamcommunity.com/profiles/{steamID}",
-                description = $"{playerteam}: {msg}",
-                color = 16760667,
-                footer = new
-                {
-                    text = $"{Config.EmbedFooter}"
-                }
-            };
-
-            var payload = new
-            {
-                embeds = new[] { embed }
-            };
-
-            var jsonPayload = Newtonsoft.Json.JsonConvert.SerializeObject(payload);
-            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-
-            var response = await httpClient.PostAsync(Config.DiscordWebhook, content);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                Logger.LogInformation($"Error while sending message to Discord! code: {response.StatusCode}");
-            }
-        }
+            username = $"{playerName} [STEAM_1:{y & 1}:{y >> 1}]",
+            avatar_url = await GetAvatar(steamID),
+            content = $"{playerteam} {msg}",
+            allowed_mentions = new { parse = Array.Empty<string>() }
+        };
+        var content = new StringContent(Newtonsoft.Json.JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
+        var response = await Http.PostAsync(Config.DiscordWebhook, content);
+        if (!response.IsSuccessStatusCode)
+            Logger.LogInformation($"Error while sending message to Discord! code: {response.StatusCode}");
     }
 
 }
