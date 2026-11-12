@@ -119,7 +119,7 @@ public class ChatRelay : BasePlugin, IPluginConfig<ChatRelayConfig>
             content = $"{playerteam} {msg}",
             allowed_mentions = new { parse = Array.Empty<string>() }
         };
-        var content = new StringContent(Newtonsoft.Json.JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
+        var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
         var response = await Http.PostAsync(Config.DiscordWebhook, content);
         if (!response.IsSuccessStatusCode)
             Logger.LogInformation($"Error while sending message to Discord! code: {response.StatusCode}");
