@@ -36,6 +36,15 @@ public class ChatRelay : BasePlugin, IPluginConfig<ChatRelayConfig>
     {
         Logger.LogInformation($"loaded successfully! (Version {ModuleVersion})");
         RegisterEventHandler<EventPlayerChat>(OnEventPlayerChat);
+        RegisterEventHandler<EventPlayerConnectFull>((e, _) => Notify(e.Userid, "joined the server"));
+        RegisterEventHandler<EventPlayerDisconnect>((e, _) => Notify(e.Userid, "left the server"));
+    }
+
+    HookResult Notify(CCSPlayerController? p, string what)
+    {
+        if (p != null && p.IsValid && !p.IsBot && !p.IsHLTV)
+            _ = SendWebhookMessageAsEmbed(p.PlayerName, $"*{what}*", "", p.SteamID);
+        return HookResult.Continue;
     }
 
     public HookResult OnEventPlayerChat(EventPlayerChat @event, GameEventInfo info)
